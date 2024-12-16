@@ -41,6 +41,7 @@ app.use(passport.session());
 //routes
 import authRouter from "./routes/auth.router.js";
 import urlRouter from "./routes/url.router.js";
+import analyticsRouter from "./routes/analytics.router.js";
 import { isUserAuthenticated } from "./middleware/auth.middleware.js";
 
 app.use("/auth", authRouter);
@@ -50,5 +51,6 @@ app.get("/dashboard", isUserAuthenticated, (req, res) => {
 });
 
 app.use("/api", urlRouter);
+app.use("/api/analytics", analyticsRouter);
 
 export { app };

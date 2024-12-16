@@ -1,7 +1,14 @@
 import geoip from "geoip-lite";
 import { Analytics } from "../models/analytics.model.js";
 import { Url } from "../models/url.model.js";
-import { getDeviceType, getOSType } from "../utils/analytics/getDeviceType.js";
+import {
+  calculateUniqueClicks,
+  getDeviceType,
+  getOSType,
+  groupByDate,
+  groupByDevice,
+  groupByOS,
+} from "../utils/analytics/analytics.utils.js";
 
 export const logAnalytics = async (alias, userAgent, ip) => {
   try {
@@ -50,4 +57,72 @@ export const logAnalytics = async (alias, userAgent, ip) => {
   } catch (error) {
     console.error("Error saving analytics data: ", error);
   }
+};
+
+export const getAnalyticsByAlias = async (alias) => {
+  const url = await Url.findOne({ customAlias: alias });
+
+  if (!url) throw new Error(`No URL found for the alias ${alias}`);
+
+  const analytics = await Analytics.find({ urlId: url._id });
+
+  return {
+    totalClicks: analytics.length,
+    uniqueClicks: calculateUniqueClicks(analytics),
+    clicksByDate: groupByDate(analytics, 7),
+    osType: groupByOS(analytics),
+    deviceType: groupByDevice(analytics),
+  };
+};
+
+export const getAnalyticsByTopic = async (topic) => {
+  const urls = await Url.find({ topic: topic });
+  if (!urls) throw new Error(`No URLs found for the topic ${topic}`);
+
+  const urlIds = urls.map((url) => url._id);
+
+  const analytics = await Analytics.find({
+    urlId: {
+      $in: { urlIds },
+    },
+  });
+
+  const clicksByUrl = urls.map((url) => {
+    const urlAnalytics = analytics.filter(
+      (entry) => entry.urlId.toString() === url._id.toString()
+    );
+    return {
+      shortUrl: url.shortUrl,
+      totalClicks: urlAnalytics.length,
+      uniqueClicks: calculateUniqueClicks(urlAnalytics),
+    };
+  });
+
+  return {
+    totalClicks: analytics.length,
+    uniqueClicks: calculateUniqueClicks(analytics),
+    clicksByDate: groupByDate(analytics, 7),
+    urls: clicksByUrl,
+  };
+};
+
+export const getOverallAnalytics = async (userId) => {
+  const urls = await Url.find({ userId });
+  if (!urls.length) return { totalUrls: 0, totalClicks: 0, uniqueClicks: 0 };
+
+  const urlIds = urls.map((url) => url._id);
+  const analytics = await Analytics.find({
+    urlId: {
+      $in: urlIds,
+    },
+  });
+
+  return {
+    totalUrls: urls.length,
+    totalClicks: analytics.length,
+    uniqueClicks: calculateUniqueClicks(analytics),
+    clicksByDate: groupByDate(analytics, 7),
+    osType: groupByOS(analytics),
+    deviceType: groupByDevice(analytics),
+  };
 };
