@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 
-const ShortUrlSchema = new Schema(
+const UrlSchema = new Schema(
   {
     longUrl: {
       type: String,
@@ -11,10 +11,9 @@ const ShortUrlSchema = new Schema(
       unique: true,
       required: true,
     },
-    alias: {
+    customAlias: {
       type: String,
       unique: true,
-      required: true,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -23,7 +22,7 @@ const ShortUrlSchema = new Schema(
     }, // Reference to the user who created the URL
     topic: {
       type: String,
-      enum: ["acquisition", "activation", "retention"],
+      enum: ["acquisition", "activation", "retention", null],
       required: false,
     },
   },
@@ -32,4 +31,4 @@ const ShortUrlSchema = new Schema(
   }
 );
 
-export const ShortUrl = mongoose.model("ShortUrl", ShortUrlSchema);
+export const Url = mongoose.model("Url", UrlSchema);

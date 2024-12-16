@@ -40,6 +40,7 @@ app.use(passport.session());
 
 //routes
 import authRouter from "./routes/auth.router.js";
+import urlRouter from "./routes/url.router.js";
 import { isUserAuthenticated } from "./middleware/auth.middleware.js";
 
 app.use("/auth", authRouter);
@@ -47,5 +48,7 @@ app.use("/auth", authRouter);
 app.get("/dashboard", isUserAuthenticated, (req, res) => {
   res.json({ message: "Welcome to the dashboard", user: req.user });
 });
+
+app.use("/api", urlRouter);
 
 export { app };
