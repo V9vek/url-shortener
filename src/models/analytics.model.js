@@ -33,4 +33,7 @@ const AnalyticsSchema = new Schema({
   },
 });
 
+// Ensure unique combination for deduplication
+AnalyticsSchema.index({ urlId: 1, ip: 1, osType: 1, deviceType: 1 }); 
+
 export const Analytics = mongoose.model("Analytics", AnalyticsSchema);
