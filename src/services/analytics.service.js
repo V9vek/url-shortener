@@ -9,6 +9,7 @@ import {
   groupByDevice,
   groupByOS,
 } from "../utils/analytics/analytics.utils.js";
+import { getFromCache, setInCache } from "../utils/cache/cache.utils.js";
 
 export const logAnalytics = async (alias, userAgent, ip) => {
   try {
@@ -60,22 +61,33 @@ export const logAnalytics = async (alias, userAgent, ip) => {
 };
 
 export const getAnalyticsByAlias = async (alias) => {
+  const cachedAnalytics = await getFromCache(`analytics:${alias}`);
+  if (cachedAnalytics) return JSON.parse(cachedAnalytics);
+
   const url = await Url.findOne({ customAlias: alias });
 
   if (!url) throw new Error(`No URL found for the alias ${alias}`);
 
   const analytics = await Analytics.find({ urlId: url._id });
 
-  return {
+  const analyticsData = {
     totalClicks: analytics.length,
     uniqueClicks: calculateUniqueClicks(analytics),
     clicksByDate: groupByDate(analytics, 7),
     osType: groupByOS(analytics),
     deviceType: groupByDevice(analytics),
   };
+
+  // cache the analytics
+  await setInCache(`analytics:${alias}`, JSON.stringify(analyticsData));
+
+  return analyticsData;
 };
 
 export const getAnalyticsByTopic = async (topic) => {
+  const cachedAnalytics = await getFromCache(`analytics:${topic}`);
+  if (cachedAnalytics) return JSON.parse(cachedAnalytics);
+
   const urls = await Url.find({ topic: topic });
   if (!urls) throw new Error(`No URLs found for the topic ${topic}`);
 
@@ -98,15 +110,23 @@ export const getAnalyticsByTopic = async (topic) => {
     };
   });
 
-  return {
+  const analyticsData = {
     totalClicks: analytics.length,
     uniqueClicks: calculateUniqueClicks(analytics),
     clicksByDate: groupByDate(analytics, 7),
     urls: clicksByUrl,
   };
+
+  // cache the analytics
+  await setInCache(`analytics:${topic}`, JSON.stringify(analyticsData));
+
+  return analyticsData;
 };
 
 export const getOverallAnalytics = async (userId) => {
+  const cachedAnalytics = await getFromCache(`analytics:overall`);
+  if (cachedAnalytics) return JSON.parse(cachedAnalytics);
+
   const urls = await Url.find({ userId });
   if (!urls.length) return { totalUrls: 0, totalClicks: 0, uniqueClicks: 0 };
 
@@ -117,7 +137,7 @@ export const getOverallAnalytics = async (userId) => {
     },
   });
 
-  return {
+  const analyticsData = {
     totalUrls: urls.length,
     totalClicks: analytics.length,
     uniqueClicks: calculateUniqueClicks(analytics),
@@ -125,4 +145,9 @@ export const getOverallAnalytics = async (userId) => {
     osType: groupByOS(analytics),
     deviceType: groupByDevice(analytics),
   };
+
+  // cache the analytics
+  await setInCache(`analytics:overall`, JSON.stringify(analyticsData));
+
+  return analyticsData;
 };

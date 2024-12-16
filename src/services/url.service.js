@@ -1,5 +1,6 @@
 import redisClient from "../db/redisClient.js";
 import { Url } from "../models/url.model.js";
+import { getFromCache, setInCache } from "../utils/cache/cache.utils.js";
 import { generateShortUrl } from "../utils/url/shortUrlGenerator.js";
 
 export const createShortUrl = async (longUrl, customAlias, topic, userId) => {
@@ -29,17 +30,17 @@ export const createShortUrl = async (longUrl, customAlias, topic, userId) => {
 
 export const getOriginalUrl = async (alias) => {
   // Check Redis cache first
-  const cachedUrl = await redisClient.get(`short_url:${alias}`);
+  const cachedUrl = await getFromCache(`short_url:${alias}`);
   if (cachedUrl) return cachedUrl;
 
   // Query the database if not in cache
   const urlDoc = await Url.findOne({ customAlias: alias });
 
   if (urlDoc) {
-    // Cache the result for future use
-    await redisClient.set(`short_url:${alias}`, urlDoc.longUrl, { EX: 3600 });  // 1hr expiry
+    // Cache the result
+    await setInCache(`short_url:${alias}`, urlDoc.longUrl);
     return urlDoc.longUrl;
   }
 
-  return null
+  return null;
 };
