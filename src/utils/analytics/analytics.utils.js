@@ -1,3 +1,5 @@
+import { Analytics } from "../../models/analytics.model.js";
+
 const getDatesInLastNDays = (n) => {
   const dates = [];
   const today = new Date();
@@ -32,49 +34,86 @@ const calculateUniqueClicks = (analytics) => {
 };
 
 // Analytics group by date
-const groupByDate = (analytics, recentDays) => {
-  const dates = getDatesInLastNDays(recentDays);
-  const clicksByDate = dates.map((date) => ({
-    date,
-    clicks: analytics.filter((entry) =>
-      entry.timestamp.toISOString().startsWith(date)
-    ).length,
-  }));
-  return clicksByDate;
+const groupByDate = async (urlId) => {
+  const date = new Date();
+  date.setDate(date.getDate() - 7); // 7 days buffer
+
+  const data = await Analytics.aggregate([
+    {
+      $match: {
+        urlId,
+        timestamp: { $gte: date },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: { format: "%Y-%m-%d", date: "$timestamp" },
+        },
+        clicks: {
+          $sum: 1,
+        },
+      },
+    },
+    { $sort: { _id: 1 } },
+    {
+      $project: {
+        date: "$_id",
+        clicks: 1,
+        _id: 0,
+      },
+    },
+  ]);
+
+  return data;
 };
 
-// Analytics by OS
-const groupByOS = (analytics) => {
-  const osData = {};
-  analytics.forEach(({ osType, ip }) => {
-    if (!osData[osType])
-      osData[osType] = { uniqueUsers: new Set(), uniqueClicks: 0 };
-    osData[osType].uniqueUsers.add(ip);
-    osData[osType].uniqueClicks += 1;
-  });
+// Analytics group by OS
+const groupByOS = async (urlId) => {
+  const data = await Analytics.aggregate([
+    { $match: { urlId } },
+    {
+      $group: {
+        _id: "$osType",
+        uniqueIps: { $addToSet: "$ip" },
+        totalClicks: { $sum: 1 },
+      },
+    },
+    {
+      $project: {
+        osName: "$_id",
+        uniqueUsers: { $size: "$uniqueIps" },
+        uniqueClicks: "$totalClicks",
+        _id: 0,
+      },
+    },
+  ]);
 
-  return Object.entries(osData).map(([osName, data]) => ({
-    osName,
-    uniqueClicks: data.uniqueClicks,
-    uniqueUsers: data.uniqueUsers.size,
-  }));
+  return data;
 };
 
 // Analytics by Device Type
-const groupByDevice = (analytics) => {
-  const deviceData = {};
-  analytics.forEach(({ deviceType, ip }) => {
-    if (!deviceData[deviceType])
-      deviceData[deviceType] = { uniqueUsers: new Set(), uniqueClicks: 0 };
-    deviceData[deviceType].uniqueUsers.add(ip);
-    deviceData[deviceType].uniqueClicks += 1;
-  });
+const groupByDevice = async (urlId) => {
+  const data = await Analytics.aggregate([
+    { $match: { urlId } },
+    {
+      $group: {
+        _id: "$deviceType",
+        uniqueIps: { $addToSet: "$ip" },
+        totalClicks: { $sum: 1 },
+      },
+    },
+    {
+      $project: {
+        deviceName: "$_id",
+        uniqueUsers: { $size: "$uniqueIps" },
+        uniqueClicks: "$totalClicks",
+        _id: 0,
+      },
+    },
+  ]);
 
-  return Object.entries(deviceData).map(([deviceName, data]) => ({
-    deviceName,
-    uniqueClicks: data.uniqueClicks,
-    uniqueUsers: data.uniqueUsers.size,
-  }));
+  return data;
 };
 
 export {

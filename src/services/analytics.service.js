@@ -34,27 +34,17 @@ export const logAnalytics = async (alias, userAgent, ip) => {
 
     const deviceType = getDeviceType(userAgent);
 
-    // Check if an entry already exists for the same user (deduplication logic)
-    const existingAnalytics = await Analytics.findOne({
+    const analyticsEntry = new Analytics({
       urlId: shortUrl._id,
+      timestamp: new Date(),
       ip,
+      userAgent,
       osType,
       deviceType,
+      geolocation,
     });
 
-    if (!existingAnalytics) {
-      const analyticsEntry = new Analytics({
-        urlId: shortUrl._id,
-        timestamp: new Date(),
-        ip,
-        userAgent,
-        osType,
-        deviceType,
-        geolocation,
-      });
-
-      await Analytics.create(analyticsEntry);
-    }
+    await Analytics.create(analyticsEntry);
   } catch (error) {
     console.error("Error saving analytics data: ", error);
   }
@@ -68,14 +58,20 @@ export const getAnalyticsByAlias = async (alias) => {
 
   if (!url) throw new Error(`No URL found for the alias ${alias}`);
 
-  const analytics = await Analytics.find({ urlId: url._id });
+  const totalClicks = await Analytics.countDocuments({ urlId: url._id });
+  const uniqueClicks = await Analytics.distinct("ip", { urlId: url._id }).then(
+    (ips) => ips.length
+  );
+  const clicksByDate = await groupByDate(url._id);
+  const osType = await groupByOS(url._id);
+  const deviceType = await groupByDevice(url._id);
 
   const analyticsData = {
-    totalClicks: analytics.length,
-    uniqueClicks: calculateUniqueClicks(analytics),
-    clicksByDate: groupByDate(analytics, 7),
-    osType: groupByOS(analytics),
-    deviceType: groupByDevice(analytics),
+    totalClicks: totalClicks,
+    uniqueClicks,
+    clicksByDate,
+    osType,
+    deviceType,
   };
 
   // cache the analytics
@@ -93,27 +89,75 @@ export const getAnalyticsByTopic = async (topic) => {
 
   const urlIds = urls.map((url) => url._id);
 
-  const analytics = await Analytics.find({
-    urlId: {
-      $in: { urlIds },
+  // combined multiple aggregation pipelines
+  const analytics = await Analytics.aggregate([
+    {
+      $match: {
+        urlId: { $in: urlIds },
+      },
     },
-  });
+    {
+      $facet: {
+        totalClicks: [{ $count: "count" }],
+        uniqueClicks: [{ $group: { _id: "$ip" } }, { $count: "count" }],
+        clicksByDate: [
+          {
+            $match: {
+              timestamp: {
+                $gte: new Date(new Date().setDate(new Date().getDate() - 7)),
+              },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: "%Y-%m-%d", date: "$timestamp" },
+              },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ],
+        clicksByUrl: [
+          {
+            $group: {
+              _id: "$urlId",
+              totalClicks: { $sum: 1 },
+              uniqueClicks: { $addToSet: "$ip" },
+            },
+          },
+          {
+            $project: {
+              urlId: "$_id",
+              totalClicks: 1,
+              uniqueClicks: { $size: "$uniqueClicks" },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const [result] = analytics;
 
   const clicksByUrl = urls.map((url) => {
-    const urlAnalytics = analytics.filter(
-      (entry) => entry.urlId.toString() === url._id.toString()
+    const urlAnalytics = result.clicksByUrl.find((entry) =>
+      entry.urlId.equals(url._id)
     );
     return {
       shortUrl: url.shortUrl,
-      totalClicks: urlAnalytics.length,
-      uniqueClicks: calculateUniqueClicks(urlAnalytics),
+      totalClicks: urlAnalytics?.totalClicks || 0,
+      uniqueClicks: urlAnalytics?.uniqueClicks || 0,
     };
   });
 
   const analyticsData = {
-    totalClicks: analytics.length,
-    uniqueClicks: calculateUniqueClicks(analytics),
-    clicksByDate: groupByDate(analytics, 7),
+    totalClicks: result.totalClicks[0]?.count || 0,
+    uniqueClicks: result.uniqueClicks[0]?.count || 0,
+    clicksByDate: result.clicksByDate.map((entry) => ({
+      date: entry._id,
+      clicks: entry.count,
+    })),
     urls: clicksByUrl,
   };
 
@@ -131,19 +175,84 @@ export const getOverallAnalytics = async (userId) => {
   if (!urls.length) return { totalUrls: 0, totalClicks: 0, uniqueClicks: 0 };
 
   const urlIds = urls.map((url) => url._id);
-  const analytics = await Analytics.find({
-    urlId: {
-      $in: urlIds,
+
+  // combined multiple aggregation pipelines
+  const analytics = await Analytics.aggregate([
+    { $match: { urlId: { $in: urlIds } } },
+    {
+      $facet: {
+        totalClicks: [{ $count: "count" }],
+        uniqueClicks: [{ $group: { _id: "$ip" } }, { $count: "count" }],
+        clicksByDate: [
+          {
+            $match: {
+              timestamp: {
+                $gte: new Date(new Date().setDate(new Date().getDate() - 7)),
+              },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: "%Y-%m-%d", date: "$timestamp" },
+              },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { _id: 1 } },
+        ],
+        // OS Type Analytics
+        osType: [
+          {
+            $group: {
+              _id: "$osType",
+              uniqueIps: { $addToSet: "$ip" },
+              totalClicks: { $sum: 1 },
+            },
+          },
+          {
+            $project: {
+              osName: "$_id",
+              uniqueUsers: { $size: "$uniqueIps" },
+              uniqueClicks: "$totalClicks",
+              _id: 0
+            },
+          },
+        ],
+        // Device Type Analytics
+        deviceType: [
+          {
+            $group: {
+              _id: "$deviceType",
+              uniqueIps: { $addToSet: "$ip" },
+              totalClicks: { $sum: 1 },
+            },
+          },
+          {
+            $project: {
+              deviceName: "$_id",
+              uniqueUsers: { $size: "$uniqueIps" },
+              uniqueClicks: "$totalClicks",
+              _id: 0
+            },
+          },
+        ],
+      },
     },
-  });
+  ]);
+
+  const [result] = analytics;
 
   const analyticsData = {
     totalUrls: urls.length,
-    totalClicks: analytics.length,
-    uniqueClicks: calculateUniqueClicks(analytics),
-    clicksByDate: groupByDate(analytics, 7),
-    osType: groupByOS(analytics),
-    deviceType: groupByDevice(analytics),
+    totalClicks: result.totalClicks[0]?.count || 0,
+    uniqueClicks: result.uniqueClicks[0]?.count || 0,
+    clicksByDate: result.clicksByDate.map((entry) => ({
+      date: entry._id,
+      clicks: entry.count,
+    })),
+    osType: result.osType,
+    deviceType: result.deviceType,
   };
 
   // cache the analytics
