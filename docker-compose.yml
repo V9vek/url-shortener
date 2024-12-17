@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  # MongoDB Service
+  mongo:
+    image: mongo:7.0.5
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  # Redis Service
+  redis:
+    image: redis:7.2.4
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+  # Application Service
+  app:
+    build: .
+    container_name: url-shortener
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongo
+      - redis
+    environment:
+      PORT: ${PORT}
+      MONGODB_URI: ${MONGODB_URI}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    command: ["npm", "run", "dev"]
+
+volumes:
+  mongo-data:
+    driver: local
