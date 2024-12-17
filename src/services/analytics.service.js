@@ -2,7 +2,6 @@ import geoip from "geoip-lite";
 import { Analytics } from "../models/analytics.model.js";
 import { Url } from "../models/url.model.js";
 import {
-  calculateUniqueClicks,
   getDeviceType,
   getOSType,
   groupByDate,
@@ -215,7 +214,7 @@ export const getOverallAnalytics = async (userId) => {
               osName: "$_id",
               uniqueUsers: { $size: "$uniqueIps" },
               uniqueClicks: "$totalClicks",
-              _id: 0
+              _id: 0,
             },
           },
         ],
@@ -233,7 +232,7 @@ export const getOverallAnalytics = async (userId) => {
               deviceName: "$_id",
               uniqueUsers: { $size: "$uniqueIps" },
               uniqueClicks: "$totalClicks",
-              _id: 0
+              _id: 0,
             },
           },
         ],

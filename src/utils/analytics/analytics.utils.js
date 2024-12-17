@@ -1,18 +1,5 @@
 import { Analytics } from "../../models/analytics.model.js";
 
-const getDatesInLastNDays = (n) => {
-  const dates = [];
-  const today = new Date();
-
-  for (let i = 0; i < n; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    dates.push(date.toISOString().split("T")[0]); // Format: YYYY-MM-DD
-  }
-
-  return dates.reverse();
-};
-
 const getOSType = (userAgent) => {
   if (userAgent.includes("Windows")) return "Windows";
   if (userAgent.includes("Mac OS")) return "macOS";
