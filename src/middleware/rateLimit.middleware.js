@@ -3,8 +3,8 @@ import { RedisStore } from "rate-limit-redis";
 import redisClient from "../db/redisClient.js";
 
 export const rateLimiter = rateLimit({
-  window: 1 * 60 * 1000,    // 1 min
-  max: 10,                  // 10 request per 1 min
+  window: 1 * 60 * 1000, // 1 min
+  max: 10, // 10 request per 1 min
   keyGenerator: (req) => req.user?.id || req.ip,
   standardHeaders: true,
   legacyHeaders: false,

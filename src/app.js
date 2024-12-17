@@ -47,7 +47,7 @@ import { isUserAuthenticated } from "./middleware/auth.middleware.js";
 app.use("/auth", authRouter);
 
 app.get("/dashboard", isUserAuthenticated, (req, res) => {
-  res.json({ message: "Welcome to the dashboard", user: req.user });
+  res.send("Welcome to the URL Shortener, Check out the docs at /docs endpoint");
 });
 
 app.use("/api", urlRouter);
