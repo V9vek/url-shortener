@@ -43,14 +43,27 @@ import authRouter from "./routes/auth.router.js";
 import urlRouter from "./routes/url.router.js";
 import analyticsRouter from "./routes/analytics.router.js";
 import { isUserAuthenticated } from "./middleware/auth.middleware.js";
+import { swaggerDocs } from "./utils/swagger.js";
 
 app.use("/auth", authRouter);
 
 app.get("/dashboard", isUserAuthenticated, (req, res) => {
-  res.send("Welcome to the URL Shortener, Check out the docs at /docs endpoint");
+  res.json({
+    message:
+      "Welcome to the URL Shortener, Check out the docs at /docs endpoint",
+  });
 });
 
 app.use("/api", urlRouter);
 app.use("/api/analytics", analyticsRouter);
+swaggerDocs(app)
+
+// 404 pages
+app.use((req, res, next) => {
+  res.status(404).json({
+    message:
+      "This route does not exist. Please visit our documentation at '/docs' or '/auth/google' for more information.",
+  });
+});
 
 export { app };
