@@ -2,12 +2,17 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { User } from "../../models/user.model.js";
 
+const callbackURL =
+  process.env.NODE_ENV === "production"
+    ? "https://url-shortener-mtoc.onrender.com/auth/google/callback"
+    : "http://localhost:8000/auth/google/callback";
+
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "/auth/google/callback", // Redirect URI
+      callbackURL: callbackURL, // Redirect URI
     },
     async (accessToken, refreshToken, profile, done) => {
       try {

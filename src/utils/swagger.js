@@ -11,8 +11,8 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: "http://localhost:8000", // Update this for production later
-        description: "Development Server",
+        url: "https://url-shortener-mtoc.onrender.com", // Update this for production later
+        description: "Production Server",
       },
     ],
     components: {
