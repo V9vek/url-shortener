@@ -10,8 +10,8 @@ const callbackURL =
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientID: process.env.GOOGLE_CLIENT_ID || "google-client-id",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "google-client-secret",
       callbackURL: callbackURL, // Redirect URI
     },
     async (accessToken, refreshToken, profile, done) => {

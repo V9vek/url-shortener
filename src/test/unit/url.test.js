@@ -1,15 +1,9 @@
-// import app from "../../app.js";
 import request from "supertest";
 import express from "express";
 import urlRouter from "../../routes/url.router.js";
 import passport from "passport";
-import redisClient from "../../db/redisClient.js";
 import { Url } from "../../models/url.model.js";
-import {
-  invalidateCache,
-  getFromCache,
-  setInCache,
-} from "../../utils/cache/cache.utils.js";
+import { getFromCache } from "../../utils/cache/cache.utils.js";
 
 jest.mock("../../db/redisClient.js");
 jest.mock("../../models/url.model.js");
@@ -27,12 +21,6 @@ jest
     req.user = { id: "user123" }; // Mock user
     next();
   });
-
-const mockUrl = {
-  longUrl: "https://example.com",
-  shortUrl: "short_url/abc123",
-  createdAt: new Date(),
-};
 
 describe("POST /api/shorten", () => {
   beforeEach(() => {

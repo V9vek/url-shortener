@@ -1,24 +1,25 @@
 import dotenv from "dotenv";
-dotenv.config({
-  path: "../../../.env",
-});
+dotenv.config({ path: "../../../.env" });
 
 import request from "supertest";
-import app from "../../app.js"
+import app from "../../app.js";
 import passport from "passport";
 
-// Mocking Passport.js
-jest.mock("passport", () => ({
-  authenticate: jest.fn((strategy, options, callback) => {
-    return (req, res, next) => {
-      if (strategy === "google" && options.scope) {
-        return next(); // Simulate successful Google authentication
-      }
-      if (callback) return callback(req, res, next); // Simulate callback
-      next();
-    };
-  }),
-}));
+jest.mock("passport", () => {
+  const originalPassport = jest.requireActual("passport");
+  return {
+    ...originalPassport,
+    authenticate: jest.fn((strategy, options, callback) => {
+      return (req, res, next) => {
+        if (strategy === "google" && options.scope) {
+          return next(); // Simulate successful Google authentication
+        }
+        if (callback) return callback(req, res, next); // Simulate callback
+        next();
+      };
+    }),
+  };
+});
 
 describe("Auth Routes", () => {
   describe("GET /auth/google", () => {
